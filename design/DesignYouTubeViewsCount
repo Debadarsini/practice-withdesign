@@ -1,0 +1,93 @@
+Functional requirements
+    1. Show views count
+    2. Like count
+
+Non Functional
+    1. Very high QPS
+    2. May not be very accurate
+    3. But can't be very different from actual count
+
+Are we okay with eventual consistency system
+        Yes
+
+Back of enveolope calculation
+     -  Millions of videos
+      - Each video - 1,000 views
+      - 100 likes
+
+    Total views - 10^9 views  per hour
+        Per second view = 250K views
+        Each server can handle = 5k views , you need 50 servers
+
+    Likes - videoId , likes count
+    Views- videoId , count
+
+    Browser -> click on video -> log an event userId , view ->
+                    likes -> log on user id , like
+
+           Kafka -> Flink job/Spark stremaing - every 5 minutes -> aggregate - put the count in -> Cassandra
+
+                5 minute is variable
+
+
+           1 day roll up to Hive from Cassandra
+           Cassandra - keep watermark
+
+          Kafka -partion id , - videoId
+                - popular ??
+                - videoId , geography - still hot partiton
+                - videoId , hexagon
+          Cassandra
+                - Watermark - time , partition , offsetId
+                    What if consumer fails
+                     What if Cassandra fails
+
+                     Before flink job starts aggregating , it says , time , partion, offsetId start , in progress
+                     Flink dies ,,, Abandon
+
+                     Start from scratc
+
+                        start:
+                        time window = 10:00–10:05
+                        partition = 3
+                        start offset = 1000
+                        status = IN_PROGRESS
+
+                        Aggregation checkpoint
+
+                        window:       10:00–10:05
+                        partition:    3
+                        startOffset:  1000
+                        endOffset:    1800
+                        status:       IN_PROGRESS
+
+                        window:       10:00–10:05
+                        partition:    3
+                        startOffset:  1000
+                        endOffset:    1800
+                        status:       COMPLETE
+
+          Cassandra
+                - VideoId , time bucket , count
+
+        Edge cases
+            - Kafka fails - there will be replication - another node ll be leader
+            - Cassandra - another replica - two nodes
+
+
+
+From User Perspective
+
+    getViews(VideoId) -> Service-Redis->Cassandra
+    getLikes(VideoId)  -> Service -Redis -> cassandra
+            Cassandra to Redis
+                - Async refresher , after one time window is flushed
+z
+
+             Unique count
+                - EventId - recognise - uniqueness - time source time ...
+
+
+
+
+

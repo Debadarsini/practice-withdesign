@@ -1,0 +1,103 @@
+FR
+    - Search for hotels given a location
+    - Browse Hotel Details
+    - Book a room in hotel
+
+NFR
+    1 day - 1M Requests per second
+
+    10M inventory
+
+    Each hotel - 100 images and 1 video
+
+    Image - 1MB
+    Video - 10MB
+
+    Text = 10*10^6 *100 KB = 1000GB - DB content  - 1TB or more
+
+    Image - Cold Storage - 1MB*10^6*10*100 = 1PB - 30TB
+    Hotel Details text - 100KB
+
+
+      List<Hotels> SearchHotels( Lat , Long , within 5Kms) -> Service -> ES
+
+      getHotel(hotelId)-> Service -> MongoDB or RocksDB
+        AddHotel
+        Update Inventory
+
+      bookRoom(hotel id , roomid , start date , end date); - Payment Service - payment provider
+                                                           - booking service - Spanner/MySQL
+
+      Hotel
+           ID
+           Description
+           Images
+           Video
+           Lat
+           Long
+           Addresss
+
+      RoomType
+        ID
+        Description
+        Images
+
+      Inventory
+        Hotel Id
+        Room Type Id
+        Count
+        Date
+
+      Booking
+        booking id
+        Start Date
+        End Date
+        Hotel Id
+        Room Type Id
+        Reservation State
+
+
+      Order
+            booking id
+            amount
+
+
+      Booking
+
+      Optimistic lock
+      Pessimistic
+
+
+
+        User -> Gateway ->Services
+            -> CDN/Gateway
+
+
+        Each event -> logged in kafka
+                - Then used for refreshing cache , analytics
+
+
+
+        Reserve workflow  - Reserve Invetory - InProgress -> Payment ->complete
+                                - Failed (+1) Inventory  - Payment Failed
+                                                            - undo reservation
+                                - Cancelled State
+
+        user
+         |
+         |
+         gateway
+            |-----SearchService--Redis-ES
+            |----HotelDetails---Redis--DB
+            |-----BookingService --->Inventory
+                                        |
+                                      Payment
+                                        |
+                                      Booking
+                                         |
+                                        Kafka
+                                         |
+                                  ----------------------
+                                  |       I             |
+                                  ES     Analytics    Notification
+                                   |

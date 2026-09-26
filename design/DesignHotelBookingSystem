@@ -31,8 +31,8 @@ NFR
       Hotel
            ID
            Description
-           Images
-           Video
+           Images urls
+           Video urls
            Lat
            Long
            Addresss
@@ -40,7 +40,7 @@ NFR
       RoomType
         ID
         Description
-        Images
+        Images urls
 
       Inventory
         Hotel Id
@@ -80,15 +80,18 @@ NFR
 
         Reserve workflow  - Reserve Invetory - InProgress -> Payment ->complete
                                 - Failed (+1) Inventory  - Payment Failed
-                                                            - undo reservation
+                                                            - undo reservation - failed/cancelled/expired
                                 - Cancelled State
+                                -- Reservation expires in 10 minutes
+                                        - another job .. checks .. undo reservation - moves to expired state
 
         user
-         |
+         |-------CDN - for cacheed ui content
          |
          gateway
             |-----SearchService--Redis-ES
             |----HotelDetails---Redis--DB
+                                       --- Images/Video - object storage -- cdN
             |-----BookingService --->Inventory
                                         |
                                       Payment

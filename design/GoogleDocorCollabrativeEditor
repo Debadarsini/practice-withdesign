@@ -1,0 +1,199 @@
+
+
+    FR
+        One Doc
+        Many Doc
+        One Doc
+            - Create/Edit Document
+            - Add text
+            - Edit text
+            - Multiple ppl add/edit text
+            - Conflict resolution
+            - Comments
+            - Share document
+            - Revision History
+            - Save
+            - Offline edit + reconnect
+            - Open document / load latest state
+            - Recover from client/server disconnect
+
+    NFR
+        100 concurrent users on a doc
+        Visibility of changes in 200ms
+        Daily - Millions of users
+        No data loss
+        - No lost acknowledged edits
+        - Eventual convergence: all replicas converge to same document
+        - Version creation latency, e.g. < few seconds
+
+   BackOfTheEnvelopeCalculation
+        - 1 doc - 1MB assume
+        - Each doc - 10 versions
+        - 1M doc - 10^6 *10*1MB
+                = 10TB - per day
+
+         1 year = 10TB*365 = 3.6PB
+
+         Three way replication = 10PB
+
+
+         Other db storage etc - assume one row 100KB
+
+         1M *10*365*3 way replication*100KB = 1PB
+
+        Opeation Log
+             - Assume 1 KB
+             - per document - 100 operations /sec
+             - Store it for 1 day
+             - 10,000 docs updated
+             - 10^4*100*1KB*24*60*60
+             - 10^6*86.4*10^3KB
+             = 86.4TB
+
+
+
+Client
+    CRDT or OT
+
+Collaboration Server
+
+
+Snappshotted Document Store - Blob
+
+Metatdat Store - Consistence db
+
+Operation Log
+
+
+Each Character Change is tracked
+
+
+Main Entities
+
+    Document
+        ID
+        CreatedBy
+        CurrentVersionId
+        Url of the Document
+
+
+    Snapshor
+
+        SnapshotId
+        CreatedTimeStamp
+        Url of teh document
+        Timestamp
+
+
+      Version
+
+            VersionId
+            CreatedTimeStamp
+            Url of teh document
+            Diff With Previous Version
+            Editors
+            Timestamp
+
+
+    Operation
+        Client Id
+        Sequence Number
+        Predecisor
+        Operation
+
+
+
+
+   Who is editing document
+        -> Client ID , Device Id , DocumentId
+
+        InProgress
+            Document Id Inprogress/
+
+        Or Idle for 1 hr .. Expired .. idle
+
+  Users _> Operation - > Collaborator Service
+                        -> List of current editors of this document
+                        -> Broadcast operation to all those client
+
+                    get all Documents which is edited in last 30 seconds..
+
+                    - get all operation log
+                    - create version
+                    - snapshot
+
+                    Also a watermark to see till what is snapshot is created
+
+                    Let's keep short duration 30seconds as snapshot and half an hours as user viewed version
+
+
+                    And then broadcast to all connected clients.. Fetch latest version
+
+    DocumentClient  - use CRDT process to merge operations to Docyment
+
+                    The CRDT operation contains a unique element/operation ID and
+                    a causal predecessor/position reference. The CRDT library deterministically
+                    orders concurrent inserts and represents deletes using tombstones until compaction.
+                    This:
+
+                    For deletes create a tombstone n.. elminate during snapshot merging
+
+    Operation -> Collaborator - Broadcast
+                        - snapshot -> DB -> Object Storage
+    getDocument
+            - Permission Check
+            - laest snapshot
+            -> DeviceId, ClientId, DocumentId register - active view/edit
+            ->DocumentSession
+                  documentId
+                  userId
+                  deviceId
+                  connectionId
+                  lastHeartbeat
+                  mode = VIEW/EDIT
+
+    getVersionHistory
+            -> getAllversion-> getVersionedDocument() -> DB - Object Storage
+                        - Log creator
+
+
+
+  No Data Loss - First write to WAL , then acknoweldge , then broadcast
+    - if no ack to client .. client replays it after timeout
+    - but how do we dedupe??
+    - Deedupe using clientid , seq number and dcument
+    - if already an operation
+    - just return ack
+
+
+
+CLIENT
+  CRDT
+  local document
+  offline queue
+       │
+       │ operation
+       ▼
+COLLABORATION SERVER
+  auth
+  session/presence
+  WAL
+  deduplication
+  broadcast
+       │
+       ├──────────────► connected clients
+       │
+       ▼
+OPERATION LOG
+       │
+       ▼
+SNAPSHOT WORKER
+       │
+       ├── 30 sec → internal Snapshot
+       │
+       └── 30 min → user Revision
+                         │
+                         ▼
+                    Object Storage
+
+

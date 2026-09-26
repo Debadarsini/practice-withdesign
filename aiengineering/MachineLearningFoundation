@@ -1,0 +1,78 @@
+Neural net is a function of multiple of layers of computation.
+
+Everything is represented through a mathematical forumala.
+
+Formula is linear. If you pass a linear function through multiple layers , it will output same
+variation in anything will not change the outcome. No point of multiple layers.
+
+Hence the function is made non linear through activation function.
+
+Training data is like given x , y should be this. Then you decide a and b. What are teh values of a n b
+so that y becomes very close to ax+b
+
+Imagine multiple layers of this tuning. And neural net comes.
+
+
+y = ax+b
+
+In this example a is weight and b is bias.
+
+
+Activation functions
+    1. Relu : filters out negative values
+    2. Sigmoid : Makes the output as 0 or 1 - Binary Classification - Spam or Not Spam
+    3. Softmax : Is like bar chart , divides into various categories and all categories sum is 100%
+                - Image - dog or cat or horse
+
+No activation function gets applied sometime. predict house price.
+    Linear regression
+
+
+
+ So you define layers , function , initial a...an and b , then apply formula
+ Then apply activation function. Then pass to 2nd layer .. Third layer n so on
+
+
+ say you have two parameter and two layers , this is how it ll look
+
+ z=a1x1+ a2x2+b1 -> relu(z)->
+ z1=  a3x1+ a3x2+b2 -> relu(z1)->Z2-relu-sigmoid
+ Each layer has different weights and biases
+
+ Now after computation from all layers you try to match with output.. Its matches greats your weights n biases are sorted
+
+
+ If not you calculate the error percentage. Or loss function.
+ Then decide how much to change each layers weigh n bias to make it closer to output , that is called back propagarion
+
+ Loss functions measure prediction error and provide the training signal. Cross-entropy for classification, MSE for regression.
+
+ Uses derivative to figure out how much a n b chnage to adjust the value for Y
+
+ It does the same thing as forward , but in reverse directon from output layer
+ a1x1+ a2x2+b1->reluz->a3x1+ a3x2+b2 -> relu(z1)->Z2-relu(z2)-sigmoid->output
+
+ It calculates Y-output
+ Sigmoid derivative = output*(1-output)
+ Output Delta ($delta_{out}$) = Error × Deriv
+ Now whatever activation used in the previous layer
+
+    multiple actionvation value*derivative
+        relu(z2)*delta
+
+  $delta_{H2_Neuron1}$ = (Weight × $delta_{out}$) × ReLU_Deriv
+
+The golden rule: Initialize weights to small random values but never to zero.
+If you initialize all weights in a layer to zero (or any identical number), every neuron in that layer will compute the exact same output
+
+
+Just picking random numbers isn't enough; the scale (variance) of those random numbers must match the activation function you are using.
+
+gradient descent
+
+    Once backpropagation calculates the gradient (the slope of the error), gradient descent takes a step in the opposite direction to minimize that error using the fundamental update rule:
+
+        theta = theta - alpha*gradientof loss
+
+
+

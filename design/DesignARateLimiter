@@ -1,0 +1,322 @@
+server side rate limiter
+rules on which it should be throttled
+
+Limit excessive request
+
+Low latency : Shouldn't add much latency in evry request
+
+Resource - less
+
+Distributed Rate limiter or single server
+
+
+What is the purpose of this rate limiter
+        - Protecting servers from overburden
+        - or one user hitting ..ddos attach
+        - user/ip limit
+
+     Middleware in the server which protects the server
+
+     where should be the rate limiter
+        - at gateway
+        - or at api server
+
+    Gateway /Edge could be - for Ddos attacks
+
+    Servers could be server protection
+
+    Rate limit Alogs
+        Token Bucket - Token bucket is a container with pre defined capacity. Every time interval certain
+            amount of tokens are added. When a request comes , a token is taken out. If not token , request rejected
+                Two params : Bucket Size , Refill Rate - No of tokens put into bucket every second
+                No of buckets depends upon use case.
+
+                Pros : Easy Algo , Memory Efficient ,
+                Cons: Two params . hard to tune both
+
+        Leaking Bucket :
+            Similar to token bucket. But instead of Bucket a queue is used. A request is added to queue
+            and pulled from queue at regular interval.
+            Two Params : Bucket Size/Queue Size , Outflow rate - how many requests can be processed in a second
+
+            Pros : Memory efficient with limited queue size  , requests are processed at a fixed rate .
+                suitable for use cases that a stable outflow needed
+
+             Cons: Burst traffic fills up the queue ... if not processed.. recent requests will be rate limited..
+                    two parmas hard to tune
+
+        Fixed Window Counter
+        timeline divided into fix sized time window and assigned a counter for each window..
+        requests increment the count.. once threshold is reached..requests are rejected...till a new window stast
+            Fixed time window with
+            Edge bursts could cause more requests to drop
+        Sliding window log
+                keeps log of every request time stamp.. rolls time window.. once new request comes ... all outdated
+                requests are removed from the window.. a new request added.. till the allowed limit
+
+                    Say size is 2. Request is 1:00:01 and 1:00:30 .. allowed.. 1:00:50 rejected.. a new request comes ay
+                        1:1:40 allowed n window become 1:0:40 1:14:... olderer requests before 1:0:40 are rejected
+
+                        Works like charm by memory inefficient
+        Sliding window counter
+            is hybrid approacj fixed window count and sliding window log
+                Requests in current window + previous window*overlap percentage - at a time
+
+
+           So Rate limiter is based on a counter...
+           Where to store counter and how to increases
+           Its needs to be high throuput no lock
+           SO DB may not be appropriate
+
+           Redis  - incr n expire
+
+           Client -> Rate limiter Service -> Api Server
+                        Rate limiter service -> Redis
+
+              Client sends request , rate limiter service checks the counter for current bucket in redis
+                    - if limit is not reached .. let's accept otherwise requests
+
+
+             Rate Limit rules
+
+                Service : X
+                Ruless
+                    Name :
+                    rate_limit :
+                        unit :
+                        request_ per_unit
+
+
+                                         | -> Rules Cache -> DB
+                                                Rules Processore
+            Client -> Rate Limit Service | -> Success -> Api Service
+                                         | -> Redis -> Counter for the service
+                            -> Failed -> Drop Request
+                                -> Queue -> Message Queq
+                Client gets 429 too many request
+
+
+                Request comes -> Feteches rules -> counter .. Evaluates rile
+
+
+
+            This counter increase could have race condition.. Lock will be not a solution
+            May be created pre created counter like random id geenration
+
+            So there are two problems
+                1. Rate limiter - you want to protect your website against ddos , certain ip , user misuse..
+                2. Load shedding - you want to protect your server
+
+            For first problem - u apply rate limiter at edge , api gateway
+            2nd at server level
+
+            So every problem exists at every layer. Protection n resillency required at aevery layer.
+
+            Only thing I am not convicned about using a cental redis .. may be shard by service
+
+                                Global / Edge
+                                     |
+                               Rate Limiter
+                                     |
+                       +-------------+-------------+
+                       |             |             |
+                    Service A     Service B     Service C
+                       |             |             |
+                    Redis A       Redis B       Redis C
+
+
+            But If I have design rate limiter for Vitess or MySQL server I will not do at central level
+
+
+            At each node level ..
+
+            In the vttablet...
+
+                the flow would be this
+                    vtgate -> vttablet-> Adaptive Load Shedder / Adaptive Admission Controller
+                        throttler -> inmemory quick variable health - refereshed in eevry 5 secondds
+                                    -> health nice goes thru - this adds microsecond
+
+                                 Health not okay
+                                    -> Fetch rules
+                                    -> Check teh priority
+                                    ->Then various signals - rules of throttling could be on many
+                                            - Replication lag signal
+                                            - Latency signal
+                                            - Memory
+                                            - cpu usage signal
+                                            - Also rules say ,
+                                                    metrics - p50,p90, p99
+                                                    Shed %
+
+                                     If you have go routine continously checking those sugnal ... Keeping in memoryt
+                                     At the same time flushing it to metric system
+                                      -> low priority keep on q queue ... within window if cpu still do not
+                                      improve drop
+
+                             Background
+                          control loop
+                               |
+                    +----------+----------+
+                    |                     |
+               Collect metrics       Fetch policy
+                    |                     |
+                    +----------+----------+
+                               |
+                               v
+                      In-memory snapshot
+                               |
+                               v
+                          Request path
+                               |
+                          tiny decision
+
+
+                       request
+                          |
+                       read local state
+                          |
+                       classify priority
+                          |
+                       admit / shed
+
+
+                                           Tablet State
+
+                       CPU ----------------------+
+                       Memory -------------------+
+                       Replication lag -----------+
+                       Inflight requests ---------+
+                       P50 latency ---------------+
+                       P90 latency ---------------+----> Controller
+                       P99 latency ---------------+
+                       Throughput ----------------+
+                       Shed percentage -----------+
+
+
+                       Observe system behavior
+                               |
+                               v
+                       Determine whether capacity is healthy
+                               |
+                               v
+                       Increase/decrease admission
+                               |
+                               v
+                       Observe result
+                               |
+                               v
+                       Adjust again
+
+
+                                           Controller
+                                               |
+                                 +-------------+-------------+
+                                 |             |             |
+                              Latency        CPU       Replication lag
+                                 |             |             |
+                                 +-------------+-------------+
+                                               |
+                                               v
+                                       Admission budget
+                                               |
+                                               v
+                                           Requests
+                                               |
+                                               v
+                                        System response
+                                               |
+                                               +-----------> feedback
+
+
+                             Overloaded
+                                |
+                                v
+                             Queue requests
+                                |
+                                v
+                             Latency increases
+                                |
+                                v
+                             Clients timeout
+                                |
+                                v
+                             Clients retry
+                                |
+                                v
+                             More requests
+                                |
+                                v
+                             Queue grows
+
+
+                             High priority
+                                 |
+                                 +--> Admit
+
+                             Low priority
+                                 |
+                                 +--> Admit if capacity
+                                 |
+                                 +--> Otherwise reject quickly
+
+
+                               Final Architecture
+
+                                            CLIENT
+                                              |
+                                              v
+                                       EDGE / GATEWAY
+                                              |
+                                        Rate Limiter
+                                      IP / User / Tenant
+                                              |
+                                              v
+                                          VTGATE
+                                              |
+                                              v
+                                         VTTABLET
+                                              |
+                                              v
+                                  +-----------------------+
+                                  | Adaptive Throttler    |
+                                  |                       |
+                                  |  Fast Path            |
+                                  |  -------------------  |
+                                  |  Read local snapshot  |
+                                  |  Check priority       |
+                                  |  Check budget         |
+                                  |  Admit / Shed         |
+                                  +-----------+-----------+
+                                              |
+                                              v
+                                            MySQL
+
+
+                               Background Control Loop
+                               -----------------------
+
+                         CPU -----------+
+                         Memory --------+
+                         P50/P90/P99 ---+
+                         Inflight ------+
+                         Replication ---+----> Controller
+                         Throughput ----+          |
+                                                  |
+                                                  v
+                                            Admission Budget
+                                                  |
+                                                  v
+                                           In-memory snapshot
+                                                  |
+                                                  +----> Fast Path
+
+
+                               Configuration
+                               -------------
+                                      |
+                                      v
+                                 Rules Service
+                                      |
+                                 Local Cache
+

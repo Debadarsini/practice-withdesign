@@ -74,5 +74,68 @@ gradient descent
 
         theta = theta - alpha*gradientof loss
 
+   LLM -
+        Every text needs to be converted to floating point numbers
+        Then only a mathematical formula can predict output given an input
+        Essentially a vector of floating pt numbers , so that algo can multiple , add ..substract or whatevr
+
+        So two processes
+            Tokenisation - Texts mapped to integer Ids
+            Embedding - Maps those int ids to vector
+
+    How to tokenise
+        -> On character or word or subword
+        -> Byte Pair Encoding is the base algorithm on which all tokenisation algo are written
+        -> In a document , it generates characters for each word marks end with _ or .
+                -> Then it takes adjacent pairs and checks the no of occurence ..
+                        highest occurences are merged to a token
+                  Repeat above until vocab reaches its target size
+        Does BPE guarantee linguistically meaningful splits? No,
+         and this is a common misconception. BPE is a greedy, frequency-driven algorithm.
+
+
+    An alternative called Unigram Language Model tokenization (used in SentencePiece, which powered earlier Llama and Google models) is probabilistic rather than greedy and tends to produce more linguistically coherent splits, b
+    but neither approach is guaranteed to align with human intuitions about word structure.
+
+
+    if you vocabulary has 50000 tokens , and your embedding dimension is 512. the layer is simply a matrix
+    of shape (50000*512). To process token id 7423..row retrieves 7423 row
+
+    The learning : These rows are updated via backpropagation during training
+    when two rows appear similar in context , their rows are mathematically nudged closer
+
+    Similarity is calculated or distance by cosine or dot product
+
+    Before dense embeddings , NLP used hot encoding , if you have 50000 vocab , kitten represented a single 1 and 49,999 zeros
+
+    It was bad. use of compute.. cat n kitten could differ significantly
+
+
+    Embeddings
+        -> Static  -> Averages token across all contextes
+        -> Contextual - > Each token varies according to the context
+
+      Word2Vec (Google, 2013) is the canonical static embedding method. It trains a shallow neural network on one of two tasks:
+
+      -> Skip-gram: given a word, predict its surrounding context words
+
+      - >CBOW: given surrounding context words, predict the center word
+
+      The embeddings are a byproduct of training on this prediction task. They are the representations the network learns in order to predict context well, and they capture genuine semantic relationships as a result.
+
+      GloVe (Global Vectors for Word Representation), developed at Stanford, achieves a similar result via a different mechanism: it factorizes the word co-occurrence matrix directly rather than training on a prediction task.
+
+       Both approaches share a fundamental problem: every word gets exactly one vector regardless of context. "Bank" has one embedding whether it appears in "I walked along the river bank" or "I deposited money at the bank." The embedding is forced to average across both meanings, which means it captures neither perfectly.
+
+       Sparse Embedding -> Sparse methods like B25 are fast , excel in exact keyword matching
+       Dense Embedding -> Captures semantics , synonyms and paraphrases ,
+
+       Production system use both
+
+       The production standard is hybrid search: BM25 for first-pass candidate retrieval, dense ANN search in parallel, then Reciprocal Rank Fusion (RRF) to merge the two ranked lists, and finally a cross-encoder re-ranker to score the top candidates jointly. This pipeline underlies the retrieval layer of most enterprise RAG systems today.
+
+
+
+
 
 

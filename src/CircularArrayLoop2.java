@@ -27,6 +27,7 @@ public class CircularArrayLoop2 {
             }
             return false;
         }
+        return false;
     }
 
     private static int advance(int ptr, int[] nums, boolean forward){

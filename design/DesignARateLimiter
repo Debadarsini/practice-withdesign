@@ -320,3 +320,116 @@ What is the purpose of this rate limiter
                                       |
                                  Local Cache
 
+
+In case of sudden spike , metrcis and rules , static threshold can not protect it ..
+
+Threshold has to be dynamic
+
+    Suppose polict
+        Metric             Threshold
+        --------------------------------
+        CPU                 > 80%
+        P90 latency         > 100 ms
+        Replication lag     > 5 sec
+
+
+        Priority       Shed %
+        ----------------------
+        HIGH             0%
+        MEDIUM          10%
+        LOW             30%
+
+        Adaptive
+            Current system state
+                    |
+                    v
+            How far beyond threshold?
+                    |
+                    v
+            Controller
+                    |
+                    v
+            Dynamic shed %
+
+            Example
+
+            CPU 82%     -> shed 5%
+            CPU 85%     -> shed 10%
+            CPU 90%     -> shed 25%
+            CPU 95%     -> shed 50%
+            CPU 98%     -> shed 80%
+
+
+            We need to have a feedback loop
+
+                                 Metrics
+                       CPU / latency / lag / memory
+                                    |
+                                    v
+                              Evaluate policy
+                                    |
+                                    v
+                             Calculate shed %
+                                    |
+                                    v
+                              Admit traffic
+                                    |
+                                    v
+                             Observe metrics
+                                    |
+                                    +----------+
+                                               |
+                                               v
+                                       Adjust shed %
+
+
+                  For ex start at :
+                    Shed = 10%
+                    P90 = 120 ms
+                    Target P90 = 100 ms
+
+                 The system is still unhealthy.
+                    so
+                    10% -> 20%
+
+                   Then
+                    P90 = 105 ms
+                    Increase moderately
+                    20% -> 25%
+                Then
+            P90 = 92 ms
+
+                its recovered
+
+                Now dont go from 25-> 0%
+
+                Go gradually 25-20 .. keep observabing latency
+
+                                    NORMAL
+                                      |
+                                 CPU < 70%
+                                      |
+                                shed = 0%
+                                      |
+                                      v
+                                PRESSURE
+                                      |
+                             CPU > 70% OR
+                           P90 > 100ms OR
+                           lag > 5 seconds
+                                      |
+                                      v
+                             ADAPTIVE SHEDDING
+                                      |
+                                 shed = X%
+                                      |
+                                      v
+                                CRITICAL
+                                      |
+                             CPU > 95% OR
+                           P99 > 500ms OR
+                           severe lag
+                                      |
+                                      v
+                              aggressive shed
+

@@ -1,0 +1,533 @@
+    Requirements
+            SDK Support
+            Placement
+            Jobs has to complete
+                - Failure handling
+
+            100% of jobs at time can run
+
+            Support for connectors
+
+            Tenant support
+
+            Observability
+                State of job can be tracked at any point of time
+                Logs
+                Alerting when job fails
+
+            Do we want to support dag
+                if yes another system will come here
+
+    User Interfac
+            upload artifacory
+            submit job
+            get status of jobs
+                - how many tasks completed
+            get logs of jobs
+
+    Control Plane
+        Scheduler
+
+         Create cluster of pods/nodes or use existing pool
+          Place job
+            track each task
+            if one fails / not able to connect
+                - check errror
+                -   if system failure - retry  - place in another
+                - else terminate job
+
+                  Track Status
+
+
+           Job Controller : Keep track of job
+
+           Job status update service
+
+          Task Controller  :
+            Task status
+
+
+           Task Status Update service
+
+    Data Plane
+             Pod/Node
+                - bootstrap
+                    - install runtime specified in job
+                - SDK support for a job
+                 side car  - log collector and upload
+                side car  - metrics collector and upload
+                - clean up , kill container and wind down
+                side car - health check
+                    - alive /not alive
+    Tenant
+      Id
+      Name
+      Resource Max Specific (Queue size)
+
+    Job Store
+        Job ID
+        Job Artifact location/docker file
+        Parameters
+        Tenant
+        Job Status ( submitted/started/inprogress/failed/complete)
+        Created tm
+        Updated tm
+        output location
+        Resource Requirement
+
+    Task Stor
+        Task Id
+        Job Id
+        Staus
+        Created tm
+        updated tm
+
+    Billing
+        job id
+        Date
+        Duration
+        CPU
+        Memory
+        Disk
+
+    TaskAttempt
+    -----------
+    attempt_id
+    task_id
+    attempt_number
+    status
+    node_id
+    container_id
+    started_at
+    updated_at
+    last_heartbeat
+    exit_code
+    failure_reason
+
+      Task Status
+        PENDING
+           |
+        SCHEDULED
+           |
+        STARTING
+           |
+        RUNNING
+           |
+         +--+----------------+
+         |                   |
+        SUCCEEDED          FAILED
+                             |
+                      +------+------+
+                      |             |
+                  RETRYABLE     NON_RETRYABLE
+                      |
+                   RETRYING
+                      |
+                  SCHEDULED
+
+
+        Complete flow
+
+        user -> userpathservice-submitjob ( artifact location/docker file, params)
+                    submitjob
+                        - upload jar/orartifact - return object store usrl
+
+
+              control plane -> job controller or  poll er
+                - finds x jobs  in submitted state
+                        - each job - fetch resource requirement - create a cluster/find a pool  of nodes - place the docker file
+                                - create dag
+                                - place tasks in the nodes
+
+                - TasK Service - task side car publishes - status to task status - task poller p
+                - Job Status - checks task statuses and updated according
+
+                - Log side car - publishes log with job id
+                    - fetch log from log service with job id
+
+        Job status /Task status
+            - can be just a relational db - shareded
+
+
+
+
+    Instead of pollers
+        Events can be geenrated by tasks
+
+        If no event recieved for a task for 15 min or whatever duration
+
+
+        Then kill the existing n spawan or just spawn another one .. which ever comes back first
+
+
+        So one task Id can run in two containers.. That also we need to track ..
+
+
+                 -
+                                    USER / SDK
+                                        |
+                                    API Gateway
+                                        |
+                                 Job Submission API
+                                        |
+                            +-----------+-----------+
+                            |                       |
+                        Job Store               Object Store
+                            |                  artifact/output
+                            |
+                        Job Queue
+                            |
+                            v
+                     +--------------+
+                     | Job Controller|
+                     +------+-------+
+                            |
+                            v
+                     +--------------+
+                     | Task Manager |
+                     +------+-------+
+                            |
+                            v
+                     +--------------+
+                     |   Scheduler  |
+                     +------+-------+
+                            |
+                            v
+                   +-------------------+
+                   | Compute Scheduler |
+                   +---------+---------+
+                             |
+                   +---------+---------+
+                   |         |         |
+                 Node      Node      Node
+                   |         |         |
+                Agent     Agent     Agent
+                   |         |         |
+                Task      Task      Task
+                   |
+                   +-------> Event Bus
+                               |
+                     +---------+----------+
+                     |         |          |
+                  Task DB   Job DB    Observability
+                                        |
+                               +--------+--------+
+                               |        |        |
+                             Logs    Metrics   Alerts
+
+
+
+    If DAG
+
+                         Airflow / Workflow Engine
+                                  |
+                            DAG definition
+                                  |
+                        +---------+---------+
+                        |                   |
+                     Task A             dependencies
+                        |
+                  +-----+-----+
+                  |           |
+               Task B       Task C
+                  \           /
+                   \         /
+                     Task D
+                        |
+                        v
+                 Your Job Scheduler
+                        |
+                  +-----+-----+
+                  |           |
+                Node        Node
+
+
+
+
+
+                Final Design
+
+                                         USER / SDK
+                                             |
+                                         API Gateway
+                                             |
+                                    Job Submission API
+                                         /        \
+                                        /          \
+                                  Job Store     Object Store
+                                                  |
+                                              artifacts
+                                        |
+                                     Job Queue
+                                        |
+                                        v
+                                 +-------------+
+                                 | Job         |
+                                 | Controller  |
+                                 +------+------+
+                                        |
+                                  creates tasks
+                                        |
+                                        v
+                                 +-------------+
+                                 | Scheduler   |
+                                 +------+------+
+                                        |
+                                 +------+------+
+                                 |             |
+                               Node          Node
+                                 |             |
+                          +------+------+      |
+                          |             |      |
+                        Task         Sidecar   Task
+                                        |
+                              status/heartbeat
+                                        |
+                                        v
+                                Task Status Service
+                                        |
+                                   +----+----+
+                                   |         |
+                                Task DB    Job DB
+                                   |
+                                 Events
+                                   |
+                             Observability
+                              /     |     \
+                            Logs  Metrics  Alerts
+
+
+
+                            the problem in running two jobs .. the output location.. another might overwrite.. but as long as idempotent.. the moment u recieve success from one job .. kill the one.. but the data model changes completely.. now u have two track two tasks with same id but running in different container..
+
+
+                            1. Either kill the not active job container
+                            2. Let run both .. ensure idompetency in code
+                            3. Understand the write ... create different path.. before job finish clean up ... rename the success to actual path
+
+So what's still worth discussing?
+
+I'd stop adding architecture boxes and attack these 5 failure cases:
+
+Scheduler crashes after launching A1 but before recording it
+Task Status Service receives duplicate/out-of-order events
+A1 loses heartbeat → A2 starts → A1 comes back
+A1 and A2 both report SUCCESS simultaneously
+Job Controller crashes halfway through creating 100 tasks
+
+If you can design those correctly, your design is genuinely interview-ready, rather than just having a nice-looking architecture diagram.
+
+And #4 is particularly good: it forces you to explain how exactly one Attempt becomes the logical winner despite races. That's the distributed-systems heart of this design.
+
+schedulers generally have backup nodes running.. another gets leader electred.. 2- use the timestamp from source 3. permananent.. hence side car health prober is best .. which publishes the statuses.. n poller polls it ... same as job controller.. picks up from where it is done.. all the statuses are mentioned in db...
+
+                            Schedule fails in between scheduling
+                                    1. Scheduler failure → leader election
+
+                                              +----------------+
+                                              | Scheduler      |
+                                              | Leader         |
+                                              +-------+--------+
+                                                      |
+                                                 heartbeat
+                                                      |
+                                              +-------+--------+
+                                              |                |
+                                        Scheduler B       Scheduler C
+                                        standby           standby
+
+                              Task Status Service receives duplicate/out-of-order events
+                                    Yes, but I'd make this slightly stronger than timestamp.
+
+                                    Suppose:
+
+                                    A1:
+                                      RUNNING @ 10:01:01
+                                      FAILED  @ 10:01:10
+
+                                    Network reorders them:
+
+                                    FAILED arrives
+                                    RUNNING arrives later
+
+                                    You don't want:
+
+                                    FAILED → RUNNING   ❌
+
+                                    So the event should carry something like:
+
+                                    attempt_id
+                                    status
+                                    sequence_number
+                                    timestamp
+
+                                    Then Task Status Service can effectively say:
+
+                                    if sequence_number <= last_processed_sequence:
+                                           ignore
+                                    else:
+                                           apply
+
+                                    Timestamp can work, but monotonic sequence/epoch is safer because clocks aren't reliable for ordering.
+
+                                    3. Permanent state is in DB
+
+                                    Yes. This is the key simplification.
+
+                                    Your model is essentially:
+
+                                                      DB
+                                                       |
+                                              +--------+--------+
+                                              |                 |
+                                           Job state         Task state
+                                                                  |
+                                                             Attempt state
+
+                                    Controllers are stateless/recoverable processors.
+
+                                    If Job Controller dies:
+
+                                    Job Controller A
+                                          X
+                                          |
+                                          v
+                                    Job Controller B
+                                          |
+                                          v
+                                          DB
+                                          |
+                                          v
+                                    continue from persisted state
+
+                                    Same for Scheduler.
+
+                                    That's a very standard and good architecture.
+
+                                    4. I actually agree with your sidecar + poller combination
+
+                                    Earlier we were discussing event-driven status, but your clarification makes the model more practical:
+
+                                    Container
+                                        |
+                                     Sidecar health/status
+                                        |
+                                        v
+                                    Status store
+                                        ^
+                                        |
+                                      Poller
+                                        |
+                                        v
+                                    Task Controller
+
+                                    The important distinction is:
+
+                                    the poller isn't discovering task state from the container.
+
+                                    The sidecar continuously publishes the state, and the poller is reading the durable state.
+
+                                    That gives you recovery.
+
+                                    For example:
+
+                                    10:00  A1 RUNNING
+                                    10:01  A1 RUNNING
+                                    10:02  A1 RUNNING
+                                    10:03  A1 RUNNING
+
+                                    Scheduler crashes at 10:04.
+
+                                    New scheduler comes up:
+
+                                    read DB
+                                      |
+                                      +-- A1 RUNNING
+                                      +-- A2 SUCCEEDED
+                                      +-- A3 FAILED
+
+                                    It can simply continue.
+
+                                    5. One subtle point: "permanent" state doesn't mean blindly trust RUNNING
+
+                                    This is the one place I'd be careful.
+
+                                    Suppose DB says:
+
+                                    A1 = RUNNING
+                                    last heartbeat = 20 minutes ago
+
+                                    The DB state is durable, but liveness isn't durable.
+
+                                    So the controller needs:
+
+                                    state = RUNNING
+                                    +
+                                    last_heartbeat = old
+                                            |
+                                            v
+                                    consider LOST
+                                            |
+                                            v
+                                    retry / restart
+
+                                    This is why your sidecar health publisher is useful.
+
+                                    So I'd distinguish:
+
+                                    DB:
+                                        What was the last known state?
+
+                                    Heartbeat:
+                                        Is this execution still alive?
+
+                                    That's a clean separation.
+
+                                    And your "two attempts" problem now fits nicely
+
+                                    You don't actually have:
+
+                                    Task T1
+                                    Task T1
+
+                                    You have:
+
+                                                  TASK T1
+                                                     |
+                                              +------+------+
+                                              |             |
+                                           Attempt A1    Attempt A2
+                                              |             |
+                                           Container      Container
+                                              |             |
+                                           heartbeat      heartbeat
+
+                                    DB records everything.
+
+                                    If A1 becomes unhealthy:
+
+                                    A1 → LOST
+                                         |
+                                         +----> A2 created
+
+                                    If A2 succeeds:
+
+                                    TASK T1
+                                    status = SUCCEEDED
+                                    winner = A2
+
+                                    If A1 later comes back and says:
+
+                                    A1 = SUCCEEDED
+
+                                    that's fine. Attempt A1 succeeded physically; Task T1 had already succeeded logically with A2.
+
+                                    That's probably the cleanest resolution of the race you've been uncovering.
+
+                                    So yes: I'd now call your architecture fairly complete.
+
+                                    At this point, don't add more components. The interesting interview discussion is going to be the semantics:
+
+                                    "What exactly happens when the scheduler, sidecar, status service, or DB fails at each point in this lifecycle?"
+
+                                    That's where you can demonstrate the distributed-systems depth rather than adding architecture boxes.

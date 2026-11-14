@@ -1,0 +1,174 @@
+Notification Service
+
+    A central system
+            - Given a device id , device type
+            - notification type
+               -sends notification
+
+
+    Does it store notification
+
+    Type of notification
+        - SMS
+        - Android
+        - Ios
+        - Email
+
+        Thurd party vendors
+
+    App/Service/Jobs-> n of notification services -> queue for each type -> consumer -> integraton with thur party vendor
+
+
+    Notification Service -> Notification Template -> DB -> Cache
+
+
+    User Id
+
+    Notification Template
+
+    Values
+
+    Ph No
+    Email Address
+
+
+    Device
+        ID
+        Token
+        User Id
+        Ph
+
+    Notifcation
+        User
+        Phn
+        Body
+        Status
+            - pending
+            - send
+            - delivered
+            - seen
+
+
+     Vendor Integration - could be tricky
+        - falure exponetial backup
+        - circuit breake
+        - with another vendor
+
+
+        Queues can be scaled by having more paritions
+
+        Consumers can be scaled according to
+
+
+        Lossless - how do we ensure - reconcile - notification window
+
+
+        Compute could scale up n scale down alsod
+
+        UserChannelAddress
+        ------------------
+        address_id
+        user_id
+        channel_type       // SMS, EMAIL
+        address
+        is_verified
+        is_primary
+        status
+
+        User
+        ----
+        user_id
+        name
+        locale
+        timezone
+        notification_preferences
+        created_at
+        updated_at
+
+        Device
+        ------
+        device_id
+        user_id
+        device_type        // ANDROID, IOS
+        push_token
+        app_version
+        status             // ACTIVE, INACTIVE
+        last_seen
+        created_at
+        updated_at
+
+        Notification
+        ------------
+        notification_id
+        user_id
+        notification_type
+        channel
+        template_id
+        template_version
+        payload
+        priority
+        idempotency_key
+        scheduled_at
+        created_at
+        expires_at
+        status
+
+NotificationDelivery
+--------------------
+delivery_id
+notification_id
+channel
+destination
+vendor_id
+vendor_message_id
+attempt_number
+status
+next_retry_at
+last_error
+created_at
+updated_at
+
+
+
+KEY DESIGN POINT
+Message redelivery is possible. Use idempotency where supported, delivery attempt tracking and vendor message correlation. Exactly-once external delivery cannot be guaranteed universally.
+Processing lifecycle
+
+DB → Kafka → Consumer → Vendor API
+
+
+Delivery lifecycle
+
+Vendor API → Vendor acknowledgement → Delivery callback / status API → Tracking DB
+Tracking responsibility
+
+
+There could be
+another - a bulk message notification
+comes - u store - give it a tracking if
+
+Now break the bulk order to individiual -> publish in kakfka or queu - make an entry in db to check the status
+    - sends to vendor
+    with an id
+    vendor sends back response with an id
+
+
+    Vendor distribution
+
+        - vendor - limit
+        vendor - limit
+
+        For user preference
+
+
+        A useful additional component is a Notification Policy Engine.
+
+        It evaluates:
+        - User preferences.
+        - Channel availability.
+        - Notification priority.
+        - Frequency caps.
+        - Quiet hours.
+        - Duplicate suppression.
+        - Fallback policy.
+

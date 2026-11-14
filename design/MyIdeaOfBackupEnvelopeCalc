@@ -1,0 +1,45 @@
+Think in terms of multiples of 10^3
+
+
+1- Bytes - single digit
+10^3 - KB - thousand
+10^3* KB - Megabyte - Million
+10^3 *MB -  Gigabyte - Billion
+10^3 * GB - Terbatye - Trillion
+10^3 * TB - Petabyte - Quadriullion
+
+bool - 1 byte - 8 bits
+char/int - 1 byte - 8 bits
+short/int 16 - 2 byte
+long - 8 bytes
+int 32 - 4 bytes
+double - 8 bytes
+
+Assume text - 100KB
+    if description
+
+    Something like name etc - 1KB
+
+    Images - 1MB
+    Video - 10 MB
+
+    Keeping this in mind
+
+
+    Take no of users - daily - take in millions so calculations become easy
+        Request size
+        Response size
+
+    Find out qps - concurrent request
+        - this guves you ingress and egress bandwidth
+        - also no of servers -
+
+    if a hotel/youtube/ or any system - Take inventory count into account
+
+    Calculate storage - of texts , image abd video
+
+    Miultiple the storage by 3 - for replication
+
+
+
+
